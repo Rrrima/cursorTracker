@@ -1,0 +1,26 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+.Python
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# Data directory and files
+data/*
+screenshots_*/
+cursor_data_*.json
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Logs
+*.log
