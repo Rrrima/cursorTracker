@@ -27,8 +27,6 @@ class ContentAwareCursorTracker:
         else:
             self.app = QApplication.instance()
 
-        self.cursor_info_widget = CursorInfoWidget()
-        self.cursor_info_widget.show()
         self.cursor_data = []
         self.start_timestamp = datetime.now().strftime('%Y%m%d_%H%M')
         self.start_time = time.time()
@@ -43,6 +41,9 @@ class ContentAwareCursorTracker:
         if not os.path.exists(self.ss_dir):
             os.makedirs(self.ss_dir)
 
+        self.cursor_info_widget = CursorInfoWidget(tracker_callback=self.toggle_tracking, screenshots_path=self.ss_dir)
+        self.cursor_info_widget.show()
+
         print("Setting up signal handlers...")
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
@@ -51,14 +52,26 @@ class ContentAwareCursorTracker:
         self.timer.timeout.connect(lambda: None)  # Keep Qt responsive to signals
         self.timer.start(200)
 
-    
+    def toggle_tracking(self, enabled):
+         if enabled:
+            self.listener = mouse.Listener(
+                on_move=self.on_move,
+                on_click=self.on_click,
+                on_scroll=self.on_scroll)
+            self.listener.start()
+            print("Tracking resumed")
+         else:
+            if hasattr(self, 'listener') and self.listener:
+                self.listener.stop()
+                self.listener = None
+            print("Tracking stopped")
 
     def signal_handler(self, _signum, _frame):
+        self.save_data()
         print("\nStop tracking...")  
         try:
             self.listener.stop()
             self.cursor_info_widget.close()
-            self.save_data()
             self.app.quit()
         except Exception as e:
             print(f"Error in signal handler: {e}")
@@ -159,6 +172,8 @@ class ContentAwareCursorTracker:
        
 
     def save_data(self):
+        print("Saving data...")
+        print(f" ==== Saving {len(self.cursor_data)} events to {self.data_filename} === ")
         with open(self.data_filename, 'w') as f:
             json.dump(self.cursor_data, f, indent=2)
 

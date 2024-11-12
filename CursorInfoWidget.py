@@ -1,19 +1,27 @@
-from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout
+from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton, QHBoxLayout
 from PyQt6.QtCore import Qt, QPoint
 from PyQt6.QtGui import QFont
+import os
+import subprocess
 
 class CursorInfoWidget(QWidget):
-    def __init__(self):
+    def __init__(self,tracker_callback=None, screenshots_path=None):
         super().__init__()
         self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint | 
                           Qt.WindowType.FramelessWindowHint |
                           Qt.WindowType.Tool)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        # self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
         self.setAttribute(Qt.WidgetAttribute.WA_MacAlwaysShowToolWindow)  # Specific for macOS
         
+        # self.setFixedHeight(170)  # Adjust this value as needed
+
+        self.tracking_enabled = True  # Track state
+        self.tracker_callback = tracker_callback
         # Create layout
         layout = QVBoxLayout()
+        layout.setContentsMargins(5, 5, 5, 5)
+        layout.setSpacing(2)  # Reduce space between labels
         
         # Create labels
         self.pos_label = QLabel("Position")
@@ -26,8 +34,52 @@ class CursorInfoWidget(QWidget):
         font = QFont("Menlo", 11)
         for label in [self.pos_label, self.type_label, self.app_label, self.element_label, self.selected_text_label]:
             label.setFont(font)
-            label.setStyleSheet("color: white; background-color: rgba(0, 0, 0, 180); padding: 5px; border-radius: 5px;")
+            label.setStyleSheet("color: black; background-color: rgba(0, 0, 0, 20); padding: 5px; border-radius: 5px; max-width: 200px; height: 30px;")
             layout.addWidget(label)
+
+         # Add button container
+        button_layout = QHBoxLayout()
+        
+        # Create control button
+        self.control_button = QPushButton("Stop Tracking")
+        self.control_button.setFont(QFont("Menlo", 11))
+        self.control_button.setStyleSheet("""
+            QPushButton {
+                color: white;
+                background-color: rgba(0, 0, 0, 180);
+                padding: 5px;
+                border-radius: 5px;
+                min-width: 100px;
+                height: 20px;
+            }
+            QPushButton:hover {
+                background-color: rgba(40, 40, 40, 180);
+            }
+        """)
+        self.control_button.clicked.connect(self.toggle_tracking)
+
+        # create folder button
+        self.folder_button = QPushButton("Screenshots")
+        self.folder_button.setFont(QFont("Menlo", 11))
+        self.folder_button.setStyleSheet("""
+            QPushButton {
+                color: white;
+                background-color: rgba(0, 0, 0, 180);
+                padding: 5px;
+                border-radius: 5px;
+                width: 20px;
+                height: 20px;
+            }
+            QPushButton:hover {
+                background-color: rgba(40, 40, 40, 180);
+            }
+        """)
+        self.screenshots_path = screenshots_path
+        self.folder_button.clicked.connect(self.open_folder)
+        
+        button_layout.addWidget(self.control_button)
+        button_layout.addWidget(self.folder_button)
+        layout.addLayout(button_layout)
         
         self.setLayout(layout)
         
@@ -59,7 +111,26 @@ class CursorInfoWidget(QWidget):
                 self.selected_text_label.setText("Selected Text: ")
         else:
             self.element_label.setText("Element: None")
+
+    def open_folder(self):
+        if self.screenshots_path and os.path.exists(self.screenshots_path):
+            if os.sys.platform == 'darwin':  # macOS
+                subprocess.run(['open', self.screenshots_path])
+            elif os.sys.platform == 'win32':  # Windows
+                subprocess.run(['explorer', self.screenshots_path])
+            else:  # Linux
+                subprocess.run(['xdg-open', self.screenshots_path])
         
+    def toggle_tracking(self):
+        self.tracking_enabled = not self.tracking_enabled
+        if self.tracking_enabled:
+            self.control_button.setText("Stop Tracking")
+            if self.tracker_callback:
+                self.tracker_callback(True)
+        else:
+            self.control_button.setText("Resume Tracking")
+            if self.tracker_callback:
+                self.tracker_callback(False)
     
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
