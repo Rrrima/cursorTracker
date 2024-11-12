@@ -31,6 +31,7 @@ class ContentAwareCursorTracker:
 
         self.cursor_data = []
         self.start_timestamp = datetime.now().strftime('%Y%m%d_%H%M')
+        
         self.start_time = time.time()
         self.ui_tracker = UIElementTracker()
         self.app_tracker = ApplicationTracker()
@@ -51,6 +52,7 @@ class ContentAwareCursorTracker:
         self.ss_dir = os.path.join('data', f'screenshots_{self.start_timestamp}')
         self.downsample_factor = 0.05
         self.data_filename = os.path.join('data',f"cursor_data_{self.start_timestamp}.json")
+        self._initialize_data_file()
         
         if not os.path.exists(self.ss_dir):
             os.makedirs(self.ss_dir)
@@ -65,9 +67,22 @@ class ContentAwareCursorTracker:
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
 
+        # heartbeat timer
         self.timer = QTimer()
         self.timer.timeout.connect(lambda: None)  # Keep Qt responsive to signals
         self.timer.start(200)   
+
+        # auto-save timer
+        self.auto_save_timer = QTimer()
+        self.auto_save_timer.timeout.connect(self.save_data)
+        self.auto_save_timer.setInterval(10000)  # 10 seconds
+        self.auto_save_timer.start()
+
+    
+    def _initialize_data_file(self):
+        if not os.path.exists(self.data_filename):
+            with open(self.data_filename, 'w') as f:
+                json.dump([], f)
     
     def add_note(self, note_text):
         cursor_info = self.get_cursor_info()
@@ -251,10 +266,25 @@ class ContentAwareCursorTracker:
        
 
     def save_data(self):
-        print("Saving data...")
-        print(f" ==== Saving {len(self.cursor_data)} events to {self.data_filename} === ")
-        with open(self.data_filename, 'w') as f:
-            json.dump(self.cursor_data, f, indent=2)
+        if self.cursor_data:
+            try:
+                try:
+                    with open(self.data_filename, 'r') as f:
+                        existing_data = json.load(f)
+                except (json.JSONDecodeError, FileNotFoundError):
+                    existing_data = []
+
+                existing_data.extend(self.cursor_data)
+
+                print("Saving data...")
+                print(f" ==== Saving {len(self.cursor_data)} new events to {self.data_filename} === ")
+                with open(self.data_filename, 'w') as f:
+                    json.dump(existing_data, f, indent=2)
+                
+                self.cursor_data = []
+            except Exception as e:
+                print(f"Error saving data: {e}")
+        
 
     def start_tracking(self):
         print("Starting content-aware cursor tracking... Press Ctrl+C to stop.")
