@@ -22,6 +22,32 @@ class CursorInfoWidget(QWidget):
         layout = QVBoxLayout()
         layout.setContentsMargins(5, 5, 5, 5)
         layout.setSpacing(2)  # Reduce space between labels
+
+        # Create top bar with minimize button
+        top_bar = QHBoxLayout()
+        top_bar.addStretch()  # This pushes the minimize button to the right
+
+        # Create minimize button
+        self.minimize_button = QPushButton("_")
+        self.minimize_button.setFont(QFont("Menlo", 11))
+        self.minimize_button.setStyleSheet("""
+            QPushButton {
+                color: white;
+                background-color: rgba(0, 0, 0, 180);
+                padding: 5px;
+                border-radius: 5px;
+                width: 5px;
+                height: 5px;
+            }
+            QPushButton:hover {
+                background-color: rgba(40, 40, 40, 180);
+            }
+        """)
+        self.minimize_button.clicked.connect(self.showMinimized)
+        top_bar.addWidget(self.minimize_button)
+        
+        # Add top bar to main layout
+        layout.addLayout(top_bar)
         
         # Create labels
         self.pos_label = QLabel("Position")
@@ -35,6 +61,7 @@ class CursorInfoWidget(QWidget):
         for label in [self.pos_label, self.type_label, self.app_label, self.element_label, self.selected_text_label]:
             label.setFont(font)
             label.setStyleSheet("color: black; background-color: rgba(0, 0, 0, 20); padding: 5px; border-radius: 5px; max-width: 200px; height: 30px;")
+            label.setFixedHeight(30)  # Force fixed height
             layout.addWidget(label)
 
          # Add button container
@@ -50,7 +77,7 @@ class CursorInfoWidget(QWidget):
                 padding: 5px;
                 border-radius: 5px;
                 min-width: 100px;
-                height: 20px;
+                height: 15px;
             }
             QPushButton:hover {
                 background-color: rgba(40, 40, 40, 180);
@@ -67,8 +94,8 @@ class CursorInfoWidget(QWidget):
                 background-color: rgba(0, 0, 0, 180);
                 padding: 5px;
                 border-radius: 5px;
-                width: 20px;
-                height: 20px;
+                width: 30px;
+                height: 15px;
             }
             QPushButton:hover {
                 background-color: rgba(40, 40, 40, 180);
@@ -76,6 +103,8 @@ class CursorInfoWidget(QWidget):
         """)
         self.screenshots_path = screenshots_path
         self.folder_button.clicked.connect(self.open_folder)
+
+       
         
         button_layout.addWidget(self.control_button)
         button_layout.addWidget(self.folder_button)

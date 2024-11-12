@@ -227,15 +227,18 @@ class ContentAwareCursorTracker:
             # Convert to PIL Image
             image = Image.open(io.BytesIO(png_data))
 
+            print(image.size)
+
             # Calculate new size
             new_size = tuple(int(dim * self.downsample_factor) for dim in image.size)
             image = image.resize(new_size, Image.Resampling.LANCZOS)
 
             # Draw cursor position
             draw = ImageDraw.Draw(image)
-            cursor_x = int(x * self.downsample_factor)
-            cursor_y = int(y * self.downsample_factor)
+            cursor_x = int(x * self.downsample_factor *2)
+            cursor_y = int(y * self.downsample_factor *2)
             draw.ellipse((cursor_x-10, cursor_y-10, cursor_x+10, cursor_y+10), outline="red", width=5)
+            print(new_size,cursor_x,cursor_y)
             
             # Save to file with timestamp
             timestamp = time.strftime("%Y%m%d_%H%M%S")
