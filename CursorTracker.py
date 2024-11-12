@@ -3,7 +3,9 @@ from Cocoa import  NSBitmapImageRep, NSBitmapImageFileTypePNG
 import Cocoa
 import time
 import pandas as pd
-from pynput import mouse
+from pynput import mouse, keyboard
+from pynput.keyboard import Key, KeyCode
+from pynput.mouse import Button
 import json
 from datetime import datetime
 import AppKit
@@ -32,6 +34,18 @@ class ContentAwareCursorTracker:
         self.start_time = time.time()
         self.ui_tracker = UIElementTracker()
         self.app_tracker = ApplicationTracker()
+
+        self.listener = None
+        self.keyboard_listener = None
+        self.common_shortcuts = {
+            'copy': False,
+            'paste': False,
+            'cut': False,
+            'undo': False,
+            'redo': False,
+            'save': False,
+        }
+
         self.last_cursor_type = None
         self.last_active_app = None
         self.ss_dir = os.path.join('data', f'screenshots_{self.start_timestamp}')
@@ -54,16 +68,27 @@ class ContentAwareCursorTracker:
 
     def toggle_tracking(self, enabled):
          if enabled:
+            # start mouse listener
             self.listener = mouse.Listener(
                 on_move=self.on_move,
                 on_click=self.on_click,
                 on_scroll=self.on_scroll)
             self.listener.start()
+
+            # start keyboard listener
+            self.keyboard_listener = keyboard.Listener(
+                on_press=self.on_key_press,
+                on_release=self.on_key_release)
+            self.keyboard_listener.start()
+
             print("Tracking resumed")
          else:
             if hasattr(self, 'listener') and self.listener:
                 self.listener.stop()
                 self.listener = None
+            if hasattr(self, 'keyboard_listener') and self.keyboard_listener:
+                self.keyboard_listener.stop()
+                self.keyboard_listener = None
             print("Tracking stopped")
 
     def signal_handler(self, _signum, _frame):
@@ -169,6 +194,50 @@ class ContentAwareCursorTracker:
         self.cursor_data.append(cursor_info)
         self.cursor_info_widget.update_info(cursor_info)
         self.app.processEvents()
+
+    def on_key_press(self, key):
+        try:
+            # Check for command/control key
+            if key in {Key.cmd, Key.ctrl}:
+                self.common_shortcuts['cmd_ctrl'] = True
+                return
+
+            # Handle common shortcuts
+            if self.common_shortcuts.get('cmd_ctrl'):
+                if hasattr(key, 'char'):  # Regular keys
+                    if key.char == 'c':
+                        self._log_keyboard_action('copy')
+                    elif key.char == 'v':
+                        self._log_keyboard_action('paste')
+                    elif key.char == 'x':
+                        self._log_keyboard_action('cut')
+                    elif key.char == 'z':
+                        self._log_keyboard_action('undo')
+                    elif key.char == 's':
+                        self._log_keyboard_action('save')
+                    elif key.char == 'y':  # Some apps use Cmd+Y for redo
+                        self._log_keyboard_action('redo')
+                    
+            # Handle Cmd+Shift+Z for redo
+            if self.common_shortcuts.get('cmd_ctrl') and key == Key.shift:
+                self.common_shortcuts['shift'] = True
+
+        except AttributeError:
+            pass
+
+    def on_key_release(self, key):
+        if key in {Key.cmd, Key.ctrl}:
+            self.common_shortcuts['cmd_ctrl'] = False
+        elif key == Key.shift:
+            self.common_shortcuts['shift'] = False
+    
+    def _log_keyboard_action(self, action):
+        cursor_info = self.get_cursor_info()
+        cursor_info['event_type'] = 'keyboard'
+        cursor_info['action'] = action
+        self.cursor_data.append(cursor_info)
+        self.cursor_info_widget.update_info(cursor_info)
+        self.app.processEvents()
        
 
     def save_data(self):
@@ -188,20 +257,14 @@ class ContentAwareCursorTracker:
         
         self.listener.start()
 
-        # self.app.exec()
+        # start keyboard listener
+        self.keyboard_listener = keyboard.Listener(
+            on_press=self.on_key_press,
+            on_release=self.on_key_release)
+        self.keyboard_listener.start()
+
         self.app.exec()
        
-        # with mouse.Listener(
-        #     on_move=self.on_move,
-        #     on_click=self.on_click,
-        #     on_scroll=self.on_scroll) as listener:
-        #     listener.join()
-
-        # try:
-        #     # Start Qt event loop in main thread
-        #     self.app.exec()
-        # except KeyboardInterrupt:
-        #     print("\nStopping tracker...")
 
     def _capture_screenshot(self,x,y):
         """Capture and save the current screen"""
@@ -227,8 +290,6 @@ class ContentAwareCursorTracker:
             # Convert to PIL Image
             image = Image.open(io.BytesIO(png_data))
 
-            print(image.size)
-
             # Calculate new size
             new_size = tuple(int(dim * self.downsample_factor) for dim in image.size)
             image = image.resize(new_size, Image.Resampling.LANCZOS)
@@ -238,7 +299,6 @@ class ContentAwareCursorTracker:
             cursor_x = int(x * self.downsample_factor *2)
             cursor_y = int(y * self.downsample_factor *2)
             draw.ellipse((cursor_x-10, cursor_y-10, cursor_x+10, cursor_y+10), outline="red", width=5)
-            print(new_size,cursor_x,cursor_y)
             
             # Save to file with timestamp
             timestamp = time.strftime("%Y%m%d_%H%M%S")
@@ -251,4 +311,5 @@ class ContentAwareCursorTracker:
         except Exception as e:
             print(f"Error capturing screenshot: {e}")
             return None
+    
 

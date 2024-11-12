@@ -1,4 +1,5 @@
 from Cocoa import NSWorkspace
+
 class ApplicationTracker:
     def get_active_app_info(self):
         """Get information about the currently active application"""

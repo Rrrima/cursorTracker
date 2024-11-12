@@ -52,13 +52,14 @@ class CursorInfoWidget(QWidget):
         # Create labels
         self.pos_label = QLabel("Position")
         self.type_label = QLabel("Cursor Type")
+        self.action_label = QLabel("Action")
         self.app_label = QLabel("Active App")
         self.element_label = QLabel("Element Info")
         self.selected_text_label = QLabel("Selected Text")
         
         # Style labels
         font = QFont("Menlo", 11)
-        for label in [self.pos_label, self.type_label, self.app_label, self.element_label, self.selected_text_label]:
+        for label in [self.pos_label, self.type_label, self.app_label, self.element_label, self.selected_text_label, self.action_label]:
             label.setFont(font)
             label.setStyleSheet("color: black; background-color: rgba(0, 0, 0, 20); padding: 5px; border-radius: 5px; max-width: 200px; height: 30px;")
             label.setFixedHeight(30)  # Force fixed height
@@ -140,6 +141,19 @@ class CursorInfoWidget(QWidget):
                 self.selected_text_label.setText("Selected Text: ")
         else:
             self.element_label.setText("Element: None")
+        
+        event_type = cursor_info.get('event_type', '')
+        if event_type == 'click':
+            button = cursor_info.get('button', '')
+            action = 'pressed' if cursor_info.get('pressed') else 'released'
+            self.action_label.setText(f"Action: {button} click {action}")
+        elif event_type == 'keyboard':
+            action = cursor_info.get('action', '')
+            self.action_label.setText(f"Action: {action}")
+        elif event_type == 'move':
+            self.action_label.setText("Action: move")
+        elif event_type == 'scroll':
+            self.action_label.setText("Action: scroll")
 
     def open_folder(self):
         if self.screenshots_path and os.path.exists(self.screenshots_path):
