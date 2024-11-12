@@ -1,11 +1,11 @@
-from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton, QHBoxLayout
+from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton, QHBoxLayout, QLineEdit
 from PyQt6.QtCore import Qt, QPoint
 from PyQt6.QtGui import QFont
 import os
 import subprocess
 
 class CursorInfoWidget(QWidget):
-    def __init__(self,tracker_callback=None, screenshots_path=None):
+    def __init__(self,tracker_callback=None, screenshots_path=None, note_callback=None):
         super().__init__()
         self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint | 
                           Qt.WindowType.FramelessWindowHint |
@@ -105,11 +105,53 @@ class CursorInfoWidget(QWidget):
         self.screenshots_path = screenshots_path
         self.folder_button.clicked.connect(self.open_folder)
 
-       
         
         button_layout.addWidget(self.control_button)
         button_layout.addWidget(self.folder_button)
         layout.addLayout(button_layout)
+
+
+        # Create note input section
+        note_layout = QHBoxLayout()
+        
+        # Create note input box
+        self.note_input = QLineEdit()
+        self.note_input.setPlaceholderText("Add a note...")
+        self.note_input.setFont(QFont("Menlo", 11))
+        self.note_input.setStyleSheet("""
+            QLineEdit {
+                color: black;
+                background-color: rgba(255, 255, 255, 180);
+                padding: 5px;
+                border-radius: 5px;
+                border: 1px solid rgba(0, 0, 0, 100);
+                height: 20px;
+            }
+        """)
+        self.note_input.returnPressed.connect(self.submit_note)
+
+        # Create add note button
+        self.add_note_button = QPushButton("+")
+        self.add_note_button.setFont(QFont("Menlo", 11))
+        self.add_note_button.setStyleSheet("""
+            QPushButton {
+                color: white;
+                background-color: rgba(0, 0, 0, 180);
+                padding: 5px;
+                border-radius: 5px;
+                width: 20px;
+                height: 20px;
+            }
+            QPushButton:hover {
+                background-color: rgba(40, 40, 40, 180);
+            }
+        """)
+        self.add_note_button.clicked.connect(self.submit_note)
+        
+        note_layout.addWidget(self.note_input)
+        note_layout.addWidget(self.add_note_button)
+        layout.addLayout(note_layout)
+
         
         self.setLayout(layout)
         
@@ -121,6 +163,13 @@ class CursorInfoWidget(QWidget):
         # For dragging window
         self.dragging = False
         self.offset = QPoint()
+        self.note_callback = note_callback
+    
+    def submit_note(self):
+        note_text = self.note_input.text().strip()
+        if note_text and self.note_callback:
+            self.note_callback(note_text)
+            self.note_input.clear()
     
     def update_info(self, cursor_info):
         """Update the display with new cursor information"""

@@ -55,7 +55,10 @@ class ContentAwareCursorTracker:
         if not os.path.exists(self.ss_dir):
             os.makedirs(self.ss_dir)
 
-        self.cursor_info_widget = CursorInfoWidget(tracker_callback=self.toggle_tracking, screenshots_path=self.ss_dir)
+        self.cursor_info_widget = CursorInfoWidget(
+            tracker_callback=self.toggle_tracking, 
+            screenshots_path=self.ss_dir, 
+            note_callback=self.add_note)
         self.cursor_info_widget.show()
 
         print("Setting up signal handlers...")
@@ -64,7 +67,14 @@ class ContentAwareCursorTracker:
 
         self.timer = QTimer()
         self.timer.timeout.connect(lambda: None)  # Keep Qt responsive to signals
-        self.timer.start(200)
+        self.timer.start(200)   
+    
+    def add_note(self, note_text):
+        cursor_info = self.get_cursor_info()
+        cursor_info['event_type'] = 'note'
+        cursor_info['note'] = note_text
+        self.cursor_data.append(cursor_info)
+        print(f"Note added: {note_text}")
 
     def toggle_tracking(self, enabled):
          if enabled:
