@@ -18,6 +18,7 @@ class CursorInfoWidget(QWidget):
 
         self.tracking_enabled = True  # Track state
         self.tracker_callback = tracker_callback
+        self.is_collapsed = False
         # Create layout
         layout = QVBoxLayout()
         layout.setContentsMargins(5, 5, 5, 5)
@@ -29,21 +30,43 @@ class CursorInfoWidget(QWidget):
 
         # Create minimize button
         self.minimize_button = QPushButton("_")
-        self.minimize_button.setFont(QFont("Menlo", 11))
+        self.minimize_button.setFont(QFont("Menlo", 9))
         self.minimize_button.setStyleSheet("""
             QPushButton {
                 color: white;
                 background-color: rgba(0, 0, 0, 180);
-                padding: 5px;
+                padding: 3px;
                 border-radius: 5px;
-                width: 5px;
-                height: 5px;
+                width: 10px;
+                height: 10px;
             }
             QPushButton:hover {
                 background-color: rgba(40, 40, 40, 180);
             }
         """)
-        self.minimize_button.clicked.connect(self.showMinimized)
+        self.minimize_button.clicked.connect(self.showMinimized)    
+
+
+         # Create collapse button
+        self.collapse_button = QPushButton("▼")  # ▼ for expanded, ▶ for collapsed
+        self.collapse_button.setFont(QFont("Menlo", 9))
+        self.collapse_button.setStyleSheet("""
+            QPushButton {
+                color: white;
+                background-color: rgba(0, 0, 0, 180);
+                padding: 3px;
+                border-radius: 5px;
+                width: 10px;
+                height: 10px;
+            }
+            QPushButton:hover {
+                background-color: rgba(40, 40, 40, 180);
+            }
+        """)
+        self.collapse_button.clicked.connect(self.toggle_collapse)
+
+
+        top_bar.addWidget(self.collapse_button)
         top_bar.addWidget(self.minimize_button)
         
         # Add top bar to main layout
@@ -56,14 +79,32 @@ class CursorInfoWidget(QWidget):
         self.app_label = QLabel("Active App")
         self.element_label = QLabel("Element Info")
         self.selected_text_label = QLabel("Selected Text")
+
+        # Create container widget for collapsible content
+        self.content_widget = QWidget()
+        self.content_layout = QVBoxLayout(self.content_widget)
+        self.content_layout.setContentsMargins(0, 0, 0, 0)
+        self.content_layout.setSpacing(2)
+
+        # Move labels into content layout
+        self.labels = [
+            self.pos_label,
+            self.type_label,
+            self.action_label,
+            self.app_label,
+            self.element_label,
+            self.selected_text_label
+        ]
         
         # Style labels
         font = QFont("Menlo", 11)
-        for label in [self.pos_label, self.type_label, self.app_label, self.element_label, self.selected_text_label, self.action_label]:
+        for label in self.labels:
             label.setFont(font)
             label.setStyleSheet("color: black; background-color: rgba(0, 0, 0, 20); padding: 5px; border-radius: 5px; max-width: 200px; height: 30px;")
             label.setFixedHeight(30)  # Force fixed height
-            layout.addWidget(label)
+            self.content_layout.addWidget(label)
+
+        layout.addWidget(self.content_widget)
 
          # Add button container
         button_layout = QHBoxLayout()
@@ -223,6 +264,21 @@ class CursorInfoWidget(QWidget):
             self.control_button.setText("Resume Tracking")
             if self.tracker_callback:
                 self.tracker_callback(False)
+    
+    def toggle_collapse(self):
+        self.is_collapsed = not self.is_collapsed
+        
+        # Update button text
+        self.collapse_button.setText("▶" if self.is_collapsed else "▼")
+        
+        # Toggle visibility of content
+        self.content_widget.setVisible(not self.is_collapsed)
+        
+        # Adjust window size
+        if self.is_collapsed:
+            self.setFixedHeight(80)  # Height for just top bar, note input, and buttons
+        else:
+            self.setFixedHeight(270)  # Full height with all labels
     
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
