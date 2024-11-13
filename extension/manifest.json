@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Cursor Tracker",
+  "version": "1.0",
+  "description": "Tracks cursor movement and element data",
+  "permissions": ["activeTab", "tabs", "scripting"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "host_permissions": ["ws://localhost:8080/*"]
+}

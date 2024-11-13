@@ -23,7 +23,7 @@ class UIElementTracker:
                 "AXDescription",
                 "AXHelp",
                 "AXSelectedText",
-                "AXFocused"
+                "AXFocused",
             ]:
                 try:
                     status, value = AXUIElementCopyAttributeValue(element, attribute, None)
@@ -42,6 +42,8 @@ class UIElementTracker:
                     info["parent_role"] = str(parent_role)
                 if pt_status == 0:
                     info["parent_title"] = str(parent_title)
+            
+
                 
         except Exception as e:
             print(f"Error getting element info: {e}")

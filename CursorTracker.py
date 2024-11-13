@@ -16,11 +16,13 @@ import io
 import numpy as np
 from AppTracker import ApplicationTracker
 from UIElementTracker import UIElementTracker
+from BrowserTracker import BrowserTracker
 from PyQt6.QtWidgets import QApplication
 from CursorInfoWidget import CursorInfoWidget
 from PyQt6.QtCore import QTimer
 import signal 
 import sys
+import threading
 
 class ContentAwareCursorTracker:
     def __init__(self):
@@ -35,6 +37,8 @@ class ContentAwareCursorTracker:
         self.start_time = time.time()
         self.ui_tracker = UIElementTracker()
         self.app_tracker = ApplicationTracker()
+        self.browser_tracker = BrowserTracker(self.handle_browser_data)
+        self.browser_tracker_thread = None
 
         self.listener = None
         self.keyboard_listener = None
@@ -129,6 +133,8 @@ class ContentAwareCursorTracker:
             if hasattr(self, 'keyboard_listener') and self.keyboard_listener:
                 self.keyboard_listener.stop()
                 self.keyboard_listener = None
+            if self.browser_tracker:
+                self.browser_tracker.stop()
             print("Tracking stopped")
 
     def signal_handler(self, _signum, _frame):
@@ -138,6 +144,8 @@ class ContentAwareCursorTracker:
             self.listener.stop()
             self.cursor_info_widget.close()
             self.app.quit()
+            if self.browser_tracker:
+                self.browser_tracker.stop()
         except Exception as e:
             print(f"Error in signal handler: {e}")
         finally:
@@ -304,6 +312,12 @@ class ContentAwareCursorTracker:
     def start_tracking(self):
         print("Starting content-aware cursor tracking... Press Ctrl+C to stop.")
 
+        self.browser_tracker_thread = threading.Thread(
+            target=self.browser_tracker.start,
+            daemon=True
+        )
+        self.browser_tracker_thread.start()
+
         # Start mouse listener in a separate thread
         self.listener = mouse.Listener(
             on_move=self.on_move,
@@ -319,6 +333,13 @@ class ContentAwareCursorTracker:
         self.keyboard_listener.start()
 
         self.app.exec()
+
+    def handle_browser_data(self, element_data):
+        """Handle incoming browser element data"""
+        cursor_info = self.get_cursor_info()
+        cursor_info['browser_data'] = element_data
+        cursor_info['event_type'] = 'browser_hover'
+        self.cursor_data.append(cursor_info)
        
 
     def _capture_screenshot(self,x,y):
