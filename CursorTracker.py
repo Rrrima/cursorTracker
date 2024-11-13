@@ -60,7 +60,8 @@ class ContentAwareCursorTracker:
         self.cursor_info_widget = CursorInfoWidget(
             tracker_callback=self.toggle_tracking, 
             screenshots_path=self.ss_dir, 
-            note_callback=self.add_note)
+            note_callback=self.add_note,
+            get_notes_callback=self.get_notes)
         self.cursor_info_widget.show()
 
         print("Setting up signal handlers...")
@@ -90,6 +91,20 @@ class ContentAwareCursorTracker:
         cursor_info['note'] = note_text
         self.cursor_data.append(cursor_info)
         print(f"Note added: {note_text}")
+
+    def get_notes(self):
+        self.save_data();
+        try:
+            with open(self.data_filename, 'r') as f:
+                all_data = json.load(f)
+            
+            # Filter only note events
+            notes = [entry for entry in all_data if entry.get('event_type') == 'note']
+            return notes
+            
+        except (json.JSONDecodeError, FileNotFoundError):
+            return []
+
 
     def toggle_tracking(self, enabled):
          if enabled:

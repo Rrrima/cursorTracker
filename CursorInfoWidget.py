@@ -1,12 +1,16 @@
-from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton, QHBoxLayout, QLineEdit
+from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton, QHBoxLayout, QTextEdit
 from PyQt6.QtCore import Qt, QPoint
 from PyQt6.QtGui import QFont
 import os
 import subprocess
+from NoteViewer import NoteViewer
+
+
 
 class CursorInfoWidget(QWidget):
-    def __init__(self,tracker_callback=None, screenshots_path=None, note_callback=None):
+    def __init__(self,tracker_callback=None, screenshots_path=None, note_callback=None, get_notes_callback=None):
         super().__init__()
+        self.__content_height = 190
         self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint | 
                           Qt.WindowType.FramelessWindowHint |
                           Qt.WindowType.Tool)
@@ -104,7 +108,10 @@ class CursorInfoWidget(QWidget):
             label.setFixedHeight(30)  # Force fixed height
             self.content_layout.addWidget(label)
 
+        self.content_widget.setFixedHeight(self.__content_height) 
+
         layout.addWidget(self.content_widget)
+        self.note_input_height = 35
 
          # Add button container
         button_layout = QHBoxLayout()
@@ -156,9 +163,9 @@ class CursorInfoWidget(QWidget):
         note_layout = QHBoxLayout()
         
         # Create note input box
-        self.note_input = QLineEdit()
-        self.note_input.setPlaceholderText("Add a note...")
-        self.note_input.setFont(QFont("Menlo", 11))
+        self.note_input = QTextEdit()
+        self.note_input.setPlaceholderText("Add a note... (Ctrl+Enter to submit)")
+        self.note_input.setFont(QFont("Menlo", 10))
         self.note_input.setStyleSheet("""
             QLineEdit {
                 color: black;
@@ -166,12 +173,17 @@ class CursorInfoWidget(QWidget):
                 padding: 5px;
                 border-radius: 5px;
                 border: 1px solid rgba(0, 0, 0, 100);
-                height: 20px;
+                min-height: 20px;
+                max-height:100px;
             }
         """)
-        self.note_input.returnPressed.connect(self.submit_note)
+        # self.note_input.returnPressed.connect(self.submit_note)
+        self.note_input.setFixedHeight(35)
+        self.note_input.setFixedWidth(180)
+        self.note_input.installEventFilter(self)
+        self.note_input.textChanged.connect(self.adjust_note_input_height)
 
-        # Create add note button
+        # add note button
         self.add_note_button = QPushButton("+")
         self.add_note_button.setFont(QFont("Menlo", 11))
         self.add_note_button.setStyleSheet("""
@@ -188,10 +200,32 @@ class CursorInfoWidget(QWidget):
             }
         """)
         self.add_note_button.clicked.connect(self.submit_note)
+
+        # view notes button
+        self.view_notes_button = QPushButton("📝")  # Note emoji
+        self.view_notes_button.setFont(QFont("Menlo", 11))
+        self.view_notes_button.setStyleSheet("""
+            QPushButton {
+                color: white;
+                background-color: rgba(0, 0, 0, 180);
+                padding: 5px;
+                border-radius: 5px;
+                width: 20px;
+                height: 20px;
+            }
+            QPushButton:hover {
+                background-color: rgba(40, 40, 40, 180);
+            }
+        """)
+        self.view_notes_button.clicked.connect(self.show_notes)
         
         note_layout.addWidget(self.note_input)
-        note_layout.addWidget(self.add_note_button)
+        # note_layout.addWidget(self.add_note_button)
+        note_layout.addWidget(self.view_notes_button)
         layout.addLayout(note_layout)
+
+        self.note_callback = note_callback
+        self.get_notes_callback = get_notes_callback
 
         
         self.setLayout(layout)
@@ -206,11 +240,41 @@ class CursorInfoWidget(QWidget):
         self.offset = QPoint()
         self.note_callback = note_callback
     
+    def eventFilter(self, obj, event):
+        if obj == self.note_input and event.type() == event.Type.KeyPress:
+            if (event.key() == Qt.Key.Key_Return and 
+                event.modifiers() == Qt.KeyboardModifier.ControlModifier):
+                self.submit_note()
+                return True
+        return super().eventFilter(obj, event)
+    
     def submit_note(self):
-        note_text = self.note_input.text().strip()
+        note_text = self.note_input.toPlainText().strip()
         if note_text and self.note_callback:
             self.note_callback(note_text)
             self.note_input.clear()
+    
+    def show_notes(self):
+        if self.get_notes_callback:
+            notes = self.get_notes_callback()
+            viewer = NoteViewer(self)
+            viewer.set_notes(notes)
+            viewer.exec()
+    
+    def adjust_note_input_height(self):
+        document = self.note_input.document()
+        height = document.size().height() + 10
+        height = min(max(height, 35), 100)
+        self.note_input_height = int(height)
+        self.note_input.setFixedHeight(int(height))
+        self.adjust_height()
+    
+    def adjust_height(self):
+        if self.is_collapsed:
+            self.setFixedHeight(80 + self.note_input_height)
+        else:
+            self.setFixedHeight(self.note_input_height + self.__content_height + 80)
+
     
     def update_info(self, cursor_info):
         """Update the display with new cursor information"""
@@ -276,10 +340,12 @@ class CursorInfoWidget(QWidget):
         
         # Adjust window size
         if self.is_collapsed:
-            self.setFixedHeight(80)  # Height for just top bar, note input, and buttons
+            # self.content_widget.setFixedHeight(0) # Height for just top bar, note input, and buttons
+            self.adjust_height()
         else:
-            self.setFixedHeight(270)  # Full height with all labels
-    
+            self.content_widget.setFixedHeight(self.__content_height)  # Full height with all labels
+            self.adjust_height()
+            
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.dragging = True
